@@ -123,7 +123,14 @@ int main()
 		
 	}
 
+	fs.close();
 
+	for (int i = 0; i < 100; i++) {
+		for (int j = 0; j < 97; j++) {
+			cout << a[i][j] << " ";
+		}
+		cout << endl << endl;
+	}
 
 	/*while (!fs.eof()) {
 		fs >> temp >> str;
@@ -156,15 +163,6 @@ int main()
 			fs >> a[i][j];
 		}
 	}*/
-	
-	fs.close();
-
-	for (int i = 0; i < 100;i++) {
-		for (int j = 0; j < 97;j++) {
-			cout << a[i][j] << " ";
-		}
-		cout << endl<<endl;
-	}
 	
 	//getchar();
 	system("pause");
