@@ -9,6 +9,7 @@
 #include<queue>  
 #include<functional>
 #include<time.h>
+#include <math.h>
 #include<stdlib.h>
 #include<stdio.h>
 
@@ -36,6 +37,20 @@ struct APCA {
 			r = nullptr;
 		}
 	}*/
+};
+
+struct CoeffcientPair {
+	int HDWT_id = NULL;
+	DataType HDWT_original_value = NULL;
+	DataType HDWT_normalized_value = NULL;
+	DataType HDWT_fabs_value = NULL;
+
+};
+
+struct cmpLess {
+	bool operator () (const CoeffcientPair &a, const CoeffcientPair &b) {
+		return a.HDWT_fabs_value < b.HDWT_fabs_value;             // 从大到小  
+	}
 };
 
 
@@ -92,81 +107,143 @@ unsigned int getNextPowerOf2(unsigned int array_length) {
 	return array_length + 1;
 }
 
-void getHDWT( DataType* fa_temp_original_array, unsigned int power_of_2, DataType* wavelet_transform_time_series) {
+inline bool isPowerOf2(const DataType& old_length) {
+	return getNextPowerOf2(unsigned int(old_length)) == old_length;
+}
+
+void padZero(DataType* temp_original_array, const DataType& old_length, DataType* after_padding_array, unsigned int& new_length) {
+	new_length = getNextPowerOf2(unsigned int(old_length));
+
+	unsigned int difference = new_length - old_length;
+
+	int i = 0;
+	while (i < new_length) {
+		if (i < old_length) {
+			after_padding_array[i] = temp_original_array[i];
+		}
+		else {
+			after_padding_array[i] = 0.0;
+		}
+		i++;
+	}
+}
+
+void getHDWT(const DataType* fa_temp_original_array, unsigned int power_of_2, DataType M, DataType* wavelet_transform_time_series, int &retained_coeffs_length) {
 
 	//cout << power_of_2 << endl;
-	int f_interation_times = int(log2(power_of_2));//3
+	int f_interation_times = int(log2(power_of_2)) - 1;//3
 	//cout << f_interation_times << endl;
-	int temp_power_of_2 = power_of_2>>1;
+	int temp_power_of_2 = power_of_2 >> 1;
 
-	DataType *temp = new DataType[power_of_2];
+	DataType *fd_temp = new DataType[power_of_2];
+	priority_queue<CoeffcientPair, vector<CoeffcientPair>, cmpLess> fq_HDWT_coefficients;
+	priority_queue<DataType> fq_truncate_index;
+	CoeffcientPair temp_Coefficient;
 
-
-	for (int i = 0; i < power_of_2;i++) {
-		temp[i] = fa_temp_original_array[i];
+	for (int i = 0; i < power_of_2; i++) {
+		fd_temp[i] = fa_temp_original_array[i];
 	}
 
 	for (int i = f_interation_times; i >= 0; i--) {//3
 
 		for (int j = 0; j < temp_power_of_2; j++) {
-			wavelet_transform_time_series[j] = (temp[j << 1] + temp[1 + (j << 1)]) / 2;
-			temp[j] = (temp[j << 1] + temp[1 + (j << 1)]) / 2;
-			wavelet_transform_time_series[j + temp_power_of_2] = wavelet_transform_time_series[j] - temp[1 + (j << 1)];
+			wavelet_transform_time_series[j] = (fd_temp[j << 1] + fd_temp[1 + (j << 1)]) / 2;
+			fd_temp[j] = (fd_temp[j << 1] + fd_temp[1 + (j << 1)]) / 2;
+			wavelet_transform_time_series[j + temp_power_of_2] = wavelet_transform_time_series[j] - fd_temp[1 + (j << 1)];
+
+			temp_Coefficient.HDWT_original_value = wavelet_transform_time_series[j + temp_power_of_2];
+			temp_Coefficient.HDWT_normalized_value = temp_Coefficient.HDWT_original_value / pow(2, double(i) / 2);
+			temp_Coefficient.HDWT_fabs_value = fabs(temp_Coefficient.HDWT_normalized_value);
+			temp_Coefficient.HDWT_id = j + temp_power_of_2;
+			fq_HDWT_coefficients.push(temp_Coefficient);
+			//cout << double(i) / 2 <<" "<< pow(2, double(i) / 2) << endl;
+		}
+		temp_power_of_2 >>= 1;
+	}
+
+	temp_Coefficient.HDWT_original_value = *wavelet_transform_time_series;
+	temp_Coefficient.HDWT_normalized_value = *wavelet_transform_time_series;
+	temp_Coefficient.HDWT_fabs_value = abs(temp_Coefficient.HDWT_normalized_value);
+	temp_Coefficient.HDWT_id = 0;
+	fq_HDWT_coefficients.push(temp_Coefficient);
+
+	for (int i = 0; i < M; i++) {
+		fq_truncate_index.push(fq_HDWT_coefficients.top().HDWT_id);
+		fq_HDWT_coefficients.pop();
+	}
+
+	retained_coeffs_length = fq_truncate_index.top()+1;
+
+
+	while (!fq_HDWT_coefficients.empty()) {
+		cout << fq_HDWT_coefficients.top().HDWT_id<<" "<< fq_HDWT_coefficients.top().HDWT_original_value <<"    "<< fq_HDWT_coefficients.top().HDWT_normalized_value<<"    " << fq_HDWT_coefficients.top().HDWT_fabs_value << endl;
+		fq_HDWT_coefficients.pop();
+	}
+
+	delete[] fd_temp;
+}
+
+
+void reconstructAPCA(DataType* wavelet_transform_time_series, const int& retained_coeffs_length, DataType* apca_presentation) {
+	
+	DataType temp_apca_value=NULL;
+	int loop_times = log2(retained_coeffs_length);
+	int inner_loop_times = 1;
+	queue<DataType> temp_original_queue;
+
+	for (int i = 0; i < retained_coeffs_length; i++) {
+		apca_presentation[i] = wavelet_transform_time_series[i];
+		//temp_original_queue.push(wavelet_transform_time_series[i]);
+		
+	}
+
+	temp_original_queue.push(*wavelet_transform_time_series);
+
+	for (int i = 0; i < loop_times;i++) {
+		for (int j = 0; j < inner_loop_times;j++) {
+			
+			apca_presentation[(j << 1) + 1] = temp_original_queue.front() - apca_presentation[j + inner_loop_times];
+			apca_presentation[j<<1] = 2 * temp_original_queue.front() - apca_presentation[(j << 1) + 1];
+			temp_original_queue.pop();
+			temp_original_queue.push(apca_presentation[j << 1]);
+			temp_original_queue.push(apca_presentation[(j << 1) + 1]);
+
 		}
 
-		//cout << temp_power_of_2 << endl;
-		temp_power_of_2>>=1 ;
+		inner_loop_times <<= 1;
 	}
-	
-	delete[] temp;
-}
 
-
-void getHDWT1(DataType* fa_temp_original_array,const unsigned int &power_of_2, list<DataType>& wavelet_transform_time_series) {
-
-	int f_interation_times = int(log2(power_of_2));//3
-	int f_loop_times= power_of_2 >> 1;
-	DataType *f_average_arrayp = new DataType[f_loop_times];
-
-	for (int i = 0; i < f_loop_times; i++) {
-		cout << (fa_temp_original_array[i << 1] + fa_temp_original_array[(i << 1) + 1]) / 2 - fa_temp_original_array[(i << 1) + 1] << endl;
-		wavelet_transform_time_series.push_back((fa_temp_original_array[i<<1]+ fa_temp_original_array[(i << 1)+1])/2- fa_temp_original_array[(i << 1) + 1]);
-	}
 
 }
 
 
-
-void getAPCAPoint(const DataType* orginal_time_series, APCA &italicC, DataType &n, const int &N) {
+void getAPCAPoint( DataType* orginal_time_series, APCA &italicC, DataType &n, const int &N) {
 
 	if (n < N) {                                          //n must longer than N
 		cout << "ERROR: N has to smaller than n!!!!!!!";
 	}
-	int i = 0, j = 0;
+	int i = 0, j = 0, retained_coeffs_length=NULL;
+	unsigned int power_of_2 = NULL;
+	DataType* wavelet_transform_time_series;
+	DataType* apca_presentation;
 
-	unsigned int power_of_2 = getNextPowerOf2(n);
-
-	int zero_number = power_of_2 - n;
-
-	DataType* fa_temp_original_array = new DataType[power_of_2];
-
-
-	while (i<power_of_2) {
-		if (i<n) {
-			fa_temp_original_array[j] = orginal_time_series[j];
-		}
-		else {
-			fa_temp_original_array[j] = 0.0;
-		}
-		i++;
+	if (!isPowerOf2(n)) {
+		power_of_2 = getNextPowerOf2(n);
+		wavelet_transform_time_series = new DataType[power_of_2];
+		padZero(orginal_time_series, n, wavelet_transform_time_series, power_of_2);
+		getHDWT(orginal_time_series, power_of_2, N, wavelet_transform_time_series, retained_coeffs_length);
+		apca_presentation = new DataType[retained_coeffs_length];
+		reconstructAPCA(wavelet_transform_time_series, retained_coeffs_length, apca_presentation);
 	}
-
-	DataType* wavelet_transform_time_series = new DataType[power_of_2];
-
-	delete[] fa_temp_original_array;
+	else {
+		wavelet_transform_time_series = new DataType[n];
+		getHDWT(orginal_time_series, n, N, wavelet_transform_time_series, retained_coeffs_length);
+		apca_presentation = new DataType[retained_coeffs_length];
+		reconstructAPCA(wavelet_transform_time_series, retained_coeffs_length, apca_presentation);
+	}
+	/****************************************************************/
+	delete[] apca_presentation;
 	delete[] wavelet_transform_time_series;
-
-
 }
 
 
@@ -263,7 +340,7 @@ int main()
 	/*while (!fs.eof()) {
 		fs >> temp >> str;
 		*pointer = temp;
-		
+
 		pointer++;
 	}*/
 
@@ -291,18 +368,25 @@ int main()
 			fs >> a[i][j];
 		}
 	}*/
-	
+
 	//getchar();
 
 
-	DataType test_array[8] = {7,5,5,3,3,3,4,6};
+	DataType test_array[8] = { 7,5,5,3,3,3,4,6 };
 	DataType* mp_HDWT_time_series = new DataType[8];
-	
-	getHDWT(test_array,getNextPowerOf2(8),mp_HDWT_time_series);
+	DataType n=8 , M = 3;
+	APCA test_apca;
+	unsigned int after_padding_length = NULL;
+	int retained_coeffs_length=NULL;
 
-	for (int i = 0; i < 8;i++) {
+
+	//getHDWT(test_array, getNextPowerOf2(8), M, mp_HDWT_time_series, retained_coeffs_length);
+	getAPCAPoint(test_array, test_apca, n,M);
+
+	for (int i = 0; i < 8; i++) {
 		cout << mp_HDWT_time_series[i] << " ";
 	}
+	cout << endl;
 
 	delete[] mp_HDWT_time_series;
 	system("pause");
