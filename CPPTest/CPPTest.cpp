@@ -271,7 +271,7 @@ void reconstructApproximateAPCA(DataType* wavelet_transform_time_series, unsigne
 			temp_original_queue.push(apca_presentation[(j << 1) + 1]);
 
 		}
-
+		////////
 		inner_loop_times <<= 1;
 	}
 
