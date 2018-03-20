@@ -16,6 +16,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+//#include <cstring>
 
 #include <numeric>      // std::accumulate
 
@@ -23,6 +24,10 @@
 using namespace std;
 
 typedef double DataType;
+
+#define MAXMIUM 999999
+
+
 
 struct APCA {
 	double* v = nullptr;
@@ -41,17 +46,17 @@ struct APCA {
 	}*/
 };
 
-struct CoeffcientPair {
+struct COEFFICIENT_PAIR {
 	int HDWT_id = NULL;
 	DataType HDWT_original_value = NULL;
 	DataType HDWT_normalized_value = NULL;
-	DataType HDWT_fabs_value = NULL;
+	DataType HDWT_magnitude = NULL;
 
 };
 
 struct cmpLess {
-	bool operator () (const CoeffcientPair &a, const CoeffcientPair &b) {
-		return a.HDWT_fabs_value < b.HDWT_fabs_value;             // from big to small  
+	bool operator () (const COEFFICIENT_PAIR &a, const COEFFICIENT_PAIR &b) {
+		return a.HDWT_magnitude < b.HDWT_magnitude;             // from big to small  
 	}
 };
 
@@ -66,7 +71,6 @@ struct cmpMore {
 		return a.distance_AE > b.distance_AE;             // decrease
 	}
 };
-
 
 //struct Node{
 //
@@ -109,8 +113,8 @@ struct cmpMore {
 void initialArray(APCA_MERGE& array, const int& array_length) {
 
 	for (int i = 0; i < array_length; i++) {
-		//array.r[i] = NULL;
-		//array.v[i] = NULL;
+		array.r[i] = NULL;
+		array.v[i] = NULL;
 	}
 }
 
@@ -148,19 +152,27 @@ bool padZero(DataType* temp_original_array, const DataType& old_length, unsigned
 	return true;
 }
 
-bool truncateZero(const DataType& old_length, unsigned int& new_length, APCA& apca_presentation) {
-
+bool truncateZero(const DataType& old_length, const unsigned int& new_length, APCA& apca_presentation) {
+	cout << "segmentNum: " << apca_presentation.segmentNum;
+	cout << ", new length: " << new_length << ", old length: " << old_length << endl;
 	if (new_length == old_length) {
 		return true;
 	}
 	else if (new_length > old_length) {
-		for (int i = apca_presentation.segmentNum - 1; i >= 0; i--) {
-			if (old_length< apca_presentation.r[i] && new_length > apca_presentation.r[i - 1]) {
-				apca_presentation.r[i] = old_length;
+		int f_segments_last_point = apca_presentation.segmentNum - 1;
+
+		int f_old_last_point = old_length - 1;
+
+		for (int i = f_segments_last_point; i >= 0; i--) {
+			if (f_old_last_point <= apca_presentation.r[i] && f_old_last_point > apca_presentation.r[i - 1]) {
+				//cout <<"***"<<i<<" "<< apca_presentation.r[i] << endl;
+				apca_presentation.r[i] = f_old_last_point;
+				apca_presentation.segmentNum = i + 1;
+				//cout << apca_presentation.r[i] << endl;
 				return true;
 			}
 		}
-		cout << "Something Wrong!!!" << endl;
+		cout << "truncateZero(): Something Wrong!!!!!!!!!!!!!!!!!!!!!!" << endl;
 		return false;
 	}
 	else if (new_length < old_length) {
@@ -180,19 +192,19 @@ bool truncateZero(const DataType& old_length, unsigned int& new_length, APCA& ap
 
 
 
-void getHDWT(unsigned int& power_of_2, const int& M, DataType* wavelet_transform_time_series, priority_queue<DataType>& fq_truncate_index) {
+void getHDWT(unsigned int& length_power_of_2, const int& M, DataType* wavelet_transform_time_series, priority_queue<DataType>& fq_truncate_index) {
 
 	//cout << power_of_2 << endl;
-	int f_interation_times = int(log2(power_of_2)) - 1;//3
-	//cout << f_interation_times << endl;
-	int temp_power_of_2 = power_of_2 >> 1;
+	int f_interation_times = int(log2(length_power_of_2)) - 1;//3
+	cout << "f_interation_times: " << f_interation_times << endl;
+	int temp_power_of_2 = length_power_of_2 >> 1;
 
-	DataType *fd_temp = new DataType[power_of_2];
-	priority_queue<CoeffcientPair, vector<CoeffcientPair>, cmpLess> fq_HDWT_coefficients;
+	DataType* fd_temp = new DataType[length_power_of_2];
+	priority_queue<COEFFICIENT_PAIR, vector<COEFFICIENT_PAIR>, cmpLess> fq_HDWT_coefficients;
 
-	CoeffcientPair temp_Coefficient;
+	COEFFICIENT_PAIR temp_Coefficient;
 
-	for (int i = 0; i < power_of_2; i++) {
+	for (int i = 0; i < length_power_of_2; i++) {
 		fd_temp[i] = wavelet_transform_time_series[i];
 	}
 
@@ -205,22 +217,39 @@ void getHDWT(unsigned int& power_of_2, const int& M, DataType* wavelet_transform
 
 			temp_Coefficient.HDWT_original_value = wavelet_transform_time_series[j + temp_power_of_2];
 			temp_Coefficient.HDWT_normalized_value = temp_Coefficient.HDWT_original_value / pow(2, double(i) / 2);
-			temp_Coefficient.HDWT_fabs_value = fabs(temp_Coefficient.HDWT_normalized_value);
+			temp_Coefficient.HDWT_magnitude = fabs(temp_Coefficient.HDWT_normalized_value);
 			temp_Coefficient.HDWT_id = j + temp_power_of_2;
+
+			cout << "(" << temp_Coefficient.HDWT_original_value << "," << temp_Coefficient.HDWT_magnitude << ") ";
+			/*for (int i = 0; i < length_power_of_2; i++) {
+				cout<<wavelet_transform_time_series[i] << " ";
+			}
+			cout << endl;*/
+			/*for (int i = 0; i < length_power_of_2; i++) {
+				cout << fd_temp[i] << " ";
+			}
+			cout << endl;*/
+
 			fq_HDWT_coefficients.push(temp_Coefficient);
-			//cout << double(i) / 2 <<" "<< pow(2, double(i) / 2) << endl;
 		}
 		temp_power_of_2 >>= 1;
+		cout << endl;
 	}
+
+	cout << "wavelet_transform_time_series: ";
+	for (int i = 0; i < length_power_of_2; i++) {
+		cout << wavelet_transform_time_series[i] << " ";
+	}
+	cout << endl;
 
 	temp_Coefficient.HDWT_original_value = *wavelet_transform_time_series;
 	temp_Coefficient.HDWT_normalized_value = *wavelet_transform_time_series;
-	temp_Coefficient.HDWT_fabs_value = abs(temp_Coefficient.HDWT_normalized_value);
+	temp_Coefficient.HDWT_magnitude = abs(temp_Coefficient.HDWT_normalized_value);
 	temp_Coefficient.HDWT_id = 0;
 	fq_HDWT_coefficients.push(temp_Coefficient);
 
 	for (int i = 0; i < M; i++) {
-		cout << " Big magnitude: " << fq_HDWT_coefficients.top().HDWT_id << endl;
+		cout << " Big magnitude(ID): " << fq_HDWT_coefficients.top().HDWT_id << endl;
 		fq_truncate_index.push(fq_HDWT_coefficients.top().HDWT_id);
 		fq_HDWT_coefficients.pop();
 	}
@@ -311,6 +340,7 @@ void reconstructApproximateAPCA(DataType* wavelet_transform_time_series, unsigne
 		inner_loop_times <<= 1;
 	}
 
+	cout << " approximate length : " << endl;
 	for (int i = 0; i < apca_presentation.segmentNum; i++) {
 		cout << apca_presentation.r[i] << " " << apca_presentation.v[i] << endl;
 	}
@@ -319,16 +349,16 @@ void reconstructApproximateAPCA(DataType* wavelet_transform_time_series, unsigne
 
 
 template <typename T>
-T inline getAve(T* originalArray, const T &arrayLength) {
+T inline getAve(const T* originalArray, const T &arrayLength) {
 	return accumulate(originalArray, originalArray + int(arrayLength), 0) / arrayLength;
 }
 
-void getExactMeanValue(DataType* orginal_time_series, APCA& apca_presentation) {
+void getExactMeanValue(const DataType* orginal_time_series, APCA& apca_presentation) {
 
 	double fd_segment_length = NULL;
 	int i = 0;
 
-
+	cout << "Exact mean value: " << endl;
 	apca_presentation.v[i] = getAve(orginal_time_series, apca_presentation.r[0] + 1);
 	cout << apca_presentation.r[i] << " " << apca_presentation.v[i] << endl;
 
@@ -352,7 +382,7 @@ double distanceAE(const DataType* orginal_time_series, const APCA& merge_apca_pr
 			reconstruction_error += pow(merge_apca_presentation.v[i] - orginal_time_series[j], 2);
 		}
 	}
-	//cout << "distance AE: " << sqrt(reconstruction_error) << endl;
+	cout << "distance AE: " << sqrt(reconstruction_error) << endl;
 	return sqrt(reconstruction_error);
 }
 
@@ -362,12 +392,13 @@ bool combinateSegments(const DataType* orginal_time_series, const APCA& merge_ap
 	if (merge_number == 0) {
 
 		for (int i = 0; i < M; i++) {
+			cout << merge_apca_presentation.r[i] << " ";
 			result_vector.push_back(merge_apca_presentation.r[i]);
 			result_vector.push_back(merge_apca_presentation.v[i]);
 		}
+		
 		result_vector.push_back(distanceAE(orginal_time_series, merge_apca_presentation));
 		return true;
-
 	}
 	else {
 
@@ -377,14 +408,16 @@ bool combinateSegments(const DataType* orginal_time_series, const APCA& merge_ap
 		temp_apca.segmentNum = merge_apca_presentation.segmentNum - 1;
 
 		while (merge_index < merge_apca_presentation.segmentNum - 1) {
-
-			if (merge_apca_presentation.r[merge_index] > last_merge_point) {
+			//cout << merge_apca_presentation.r[merge_index] << " " << last_merge_point << endl;
+			if (merge_apca_presentation.r[merge_index] >= last_merge_point) {
+				//cout << ">>>>>>>" << endl;
 				for (int i = 0; i < merge_index; i++) {
 					temp_apca.r[i] = merge_apca_presentation.r[i];
 					temp_apca.v[i] = merge_apca_presentation.v[i];
 				}
 
-				temp_apca.v[merge_index] = (merge_apca_presentation.v[merge_index] + merge_apca_presentation.v[merge_index + 1]) / 2;
+				//temp_apca.v[merge_index] = (merge_apca_presentation.v[merge_index] + merge_apca_presentation.v[merge_index + 1]) / 2;
+				temp_apca.v[merge_index] = getAve(orginal_time_series + int(temp_apca.r[merge_index - 1] + 1), DataType(merge_apca_presentation.r[merge_index + 1] - merge_apca_presentation.r[merge_index - 1]));
 				temp_apca.r[merge_index] = merge_apca_presentation.r[merge_index + 1];
 
 				int i = merge_index + 1;
@@ -437,15 +470,16 @@ int getCombinationNumber(int a, int b) {
 		swap(V1, V2);
 	}
 
-	cout << record[b][V1] << endl;
+	cout <<"Combination Numbers: "<< record[b][V1] << endl;
 	return record[b][V1];
 }
 
 
-bool mergeSegments(const DataType* orginal_time_series, const APCA& apca_presentation, const DataType& n, const int& M, APCA& italicC) {
+bool mergeSegmentsRecursivly(const DataType* orginal_time_series, const APCA& apca_presentation, const DataType& n, const int& M, APCA& italicC) {
 
 	if (apca_presentation.segmentNum > M) {
 		int merge_frequency = apca_presentation.segmentNum - M;
+		cout <<"merge_frequency: " <<merge_frequency << endl;
 		int combination_sum = getCombinationNumber(apca_presentation.segmentNum - 1, merge_frequency);
 		priority_queue<APCA_MERGE, vector<APCA_MERGE>, cmpMore> queue_reconstrution_error;
 		vector<DataType> result_vector;
@@ -470,18 +504,18 @@ bool mergeSegments(const DataType* orginal_time_series, const APCA& apca_present
 
 		int i = 0;
 		for (vector<DataType>::iterator it = result_vector.begin(); it != result_vector.end(); ++it) {
-			
+
 			while (i < M) {
-				best_merge_index->r[i] = *(it + (i<<1));
-				best_merge_index->v[i] = *(it + (i<<1)+1);
+				best_merge_index->r[i] = *(it + (i << 1));
+				best_merge_index->v[i] = *(it + (i << 1) + 1);
 				i++;
 			}
 
-			best_merge_index->distance_AE = *(it + (i<<1));
+			best_merge_index->distance_AE = *(it + (i << 1));
 			i = 0;
 			queue_reconstrution_error.push(*best_merge_index);
 			best_merge_index++;
-			it += (M<<1);
+			it += (M << 1);
 		}
 
 
@@ -500,18 +534,20 @@ bool mergeSegments(const DataType* orginal_time_series, const APCA& apca_present
 			italicC.v[i] = queue_reconstrution_error.top().v[i];
 		}
 
+		getExactMeanValue(orginal_time_series, italicC);
+
 		best_merge_index = p_array_begin_index;
 		for (int i = 0; i < combination_sum; i++) {
 			//best_merge_index[i].v = nullptr;
 			delete[] best_merge_index[i].v;
 			//best_merge_index[i].r = nullptr;
 			delete[] best_merge_index[i].r;
-			
+
 		}
 		//p_array_begin_index = nullptr;
 		//best_merge_index = nullptr;
 		delete[] best_merge_index;
-		
+
 	}
 	else if (apca_presentation.segmentNum == M) {
 
@@ -533,34 +569,117 @@ bool mergeSegments(const DataType* orginal_time_series, const APCA& apca_present
 }
 
 
-void getAPCAPoint(DataType* orginal_time_series, DataType &n, const int& N, APCA& italicC) {
+void getMergeIndex(const DataType* orginal_time_series, const int& merge_frequency, APCA& apca_presentation) {
+	DataType sefments_difference = NULL;
+	int merge_start_index = NULL;
+	for (int i = 0; i < merge_frequency; i++) { //merge times
+		sefments_difference = MAXMIUM;
+		
+		apca_presentation.segmentNum--;
+		cout << "segment Number: " << apca_presentation.segmentNum << endl;
+		for (int j = 0; j < apca_presentation.segmentNum; j++) {
+			cout << "sefments_difference: " << sefments_difference << " sgetments diff: " << fabs(apca_presentation.v[j + 1] - apca_presentation.v[j]) << endl;
+			if (sefments_difference > fabs(apca_presentation.v[j + 1] - apca_presentation.v[j])) {
+				
+				sefments_difference = fabs(apca_presentation.v[j + 1] - apca_presentation.v[j]);
+				merge_start_index = j;
+			}
+		}
+		cout << "merge_start_index: "<< merge_start_index << endl;
+		//apca_presentation.v[merge_start_index] = (apca_presentation.v[merge_start_index] + apca_presentation.v[merge_start_index + 1]) / 2;
+		apca_presentation.v[merge_start_index]=getAve(orginal_time_series+int(apca_presentation.r[merge_start_index - 1]+1), DataType(apca_presentation.r[merge_start_index+1]- apca_presentation.r[merge_start_index -1]));
+		apca_presentation.r[merge_start_index] = apca_presentation.r[merge_start_index + 1];
+
+		merge_start_index++;
+		cout << "segment Number: " << apca_presentation.segmentNum << endl;
+		cout << "merge_start_index: " << merge_start_index << endl;
+		while (merge_start_index < apca_presentation.segmentNum) {
+			apca_presentation.r[merge_start_index] = apca_presentation.r[merge_start_index + 1];
+			apca_presentation.v[merge_start_index] = apca_presentation.v[merge_start_index + 1];
+			merge_start_index++;
+		}
+		for (int i = 0; i< apca_presentation.segmentNum; i++) {
+			cout << apca_presentation.r[i] << " ";
+		}
+	}
+}
+
+
+bool mergeSegmentsIterator(const DataType* orginal_time_series,  APCA& apca_presentation, const DataType& n, const int& M, APCA& italicC) {
+
+	if (apca_presentation.segmentNum > M) {
+		int merge_frequency = apca_presentation.segmentNum - M;
+
+		getMergeIndex(orginal_time_series, merge_frequency, apca_presentation);
+
+		cout <<"Segment Number: "<< apca_presentation.segmentNum << endl;
+		for (int i = 0; i< apca_presentation.segmentNum; i++) {
+			cout << apca_presentation.r[i] << " " << apca_presentation.v[i]<<endl;
+		}
+		cout << endl;
+
+		memcpy(italicC.r, apca_presentation.r,sizeof(double)*italicC.segmentNum);
+		memcpy(italicC.v, apca_presentation.v, sizeof(double)*italicC.segmentNum);
+
+		//getExactMeanValue(orginal_time_series, apca_presentation);
+	}
+	else if (apca_presentation.segmentNum == M) {
+
+		for (int i = 0; i < M; i++) {
+			memcpy(italicC.r, apca_presentation.r, sizeof(double)*italicC.segmentNum);
+			memcpy(italicC.v, apca_presentation.v, sizeof(double)*italicC.segmentNum);
+		}
+		return true;
+	}
+	else if (apca_presentation.segmentNum < M) {
+		cout << "mergeSegmentsIterator(): Something wrong! the number of segments is greater than M!!!" << endl;
+		return false;
+	}
+	else {
+		cout << "Something Wrong!!!" << endl;
+		return false;
+	}
+}
+
+
+void getAPCAPoint(DataType* orginal_time_series, const double &n, const int& N, APCA& italicC) {
 
 	if (n < N) {                                          //n must longer than N
 		cout << "ERROR: N has to smaller than n!!!!!!!";
 	}
 
 	int i = 0, j = 0, retained_coeffs_length = NULL;
-	unsigned int power_of_2 = NULL;
+	unsigned int length_power_of_2 = NULL;
 	DataType* wavelet_transform_time_series;
 	APCA general_apca_presentation;
 
 	priority_queue<DataType> fq_truncate_index;
 
-	power_of_2 = getNextPowerOf2(n);
-	wavelet_transform_time_series = new DataType[power_of_2];
+	length_power_of_2 = getNextPowerOf2(n);
+	wavelet_transform_time_series = new DataType[length_power_of_2];
 
-	padZero(orginal_time_series, n, power_of_2, wavelet_transform_time_series);
-	getHDWT(power_of_2, N, wavelet_transform_time_series, fq_truncate_index);
+	padZero(orginal_time_series, n, length_power_of_2, wavelet_transform_time_series);
 
-	retained_coeffs_length = fq_truncate_index.top() + 1;
+	cout << "Original time series: ";
+	for (int i = 0; i < length_power_of_2; i++) {
+		cout << wavelet_transform_time_series[i] << " ";
+	}
+	cout << endl;
+
+	getHDWT(length_power_of_2, N, wavelet_transform_time_series, fq_truncate_index);
+	//retained_coeffs_length = fq_truncate_index.top() + 1;
+	//cout<< fq_truncate_index.top()<<endl;
+	retained_coeffs_length = getNextPowerOf2(fq_truncate_index.top()+1);
+	cout << "retained_coeffs_length: " << retained_coeffs_length << endl;
 	general_apca_presentation.segmentNum = retained_coeffs_length;
 	general_apca_presentation.v = new DataType[retained_coeffs_length];
 	general_apca_presentation.r = new DataType[retained_coeffs_length];
 
-	reconstructApproximateAPCA(wavelet_transform_time_series, power_of_2, retained_coeffs_length, fq_truncate_index, general_apca_presentation);
-	truncateZero(n, power_of_2, general_apca_presentation);
+	reconstructApproximateAPCA(wavelet_transform_time_series, length_power_of_2, retained_coeffs_length, fq_truncate_index, general_apca_presentation);
+	truncateZero(n, length_power_of_2, general_apca_presentation);
 	getExactMeanValue(orginal_time_series, general_apca_presentation);
-	mergeSegments(orginal_time_series, general_apca_presentation, n, N, italicC);
+	mergeSegmentsIterator(orginal_time_series, general_apca_presentation, n, N, italicC);
+	//mergeSegmentsRecursivly(orginal_time_series, general_apca_presentation, n, N, italicC);
 
 	delete[] general_apca_presentation.r;
 	delete[] general_apca_presentation.v;
@@ -691,11 +810,10 @@ int main()
 	}*/
 
 	//getchar();
-
-
-	DataType test_array[8] = { 7,5,5,3,3,3,4,6 };
+    #define ARRAY_LENGTH 8
+	DataType test_array[ARRAY_LENGTH] = { 7,5,5,3,3,3,4,6};
 	//DataType* mp_HDWT_time_series = new DataType[8];
-	DataType n = 8, M = 2;
+	DataType n = ARRAY_LENGTH, M = 2;
 	APCA test_apca;
 	test_apca.segmentNum = M;
 	test_apca.r = new DataType[M];
@@ -703,14 +821,16 @@ int main()
 	unsigned int after_padding_length = NULL;
 	int retained_coeffs_length = NULL;
 
-
+	cout<<getNextPowerOf2(0)<<endl;
 	//getHDWT(test_array, getNextPowerOf2(8), M, mp_HDWT_time_series, retained_coeffs_length);
 	getAPCAPoint(test_array, n, M, test_apca);
 	cout << endl;
 	for (int i = 0; i < M; i++) {
-		cout << test_apca.r[i] << " " << test_apca.v[i] <<endl;
+		cout << test_apca.r[i] << " " << test_apca.v[i] << endl;
 	}
 	cout << endl;
+
+	distanceAE(test_array, test_apca);
 
 	//getCombinationNumber(7, 2);
 	//test_apca.r = nullptr;
