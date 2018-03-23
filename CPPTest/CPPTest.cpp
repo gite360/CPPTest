@@ -568,6 +568,8 @@ bool mergeSegmentsRecursivly(const DataType* orginal_time_series, const APCA& ap
 void getMergeIndex(const DataType* orginal_time_series, const int& merge_frequency, APCA& apca_presentation) {
 	DataType sefments_difference = NULL;
 	int merge_start_index = NULL;
+	double initial_segment_length = apca_presentation.r[0] + 1.0;
+	//cout <<"initial_segment_length:  " <<initial_segment_length << endl;
 	for (int i = 0; i < merge_frequency; i++) { //merge times
 		sefments_difference = MAXMIUM;
 
@@ -583,7 +585,29 @@ void getMergeIndex(const DataType* orginal_time_series, const int& merge_frequen
 		}
 		cout << "merge_start_index: " << merge_start_index << endl;
 		//apca_presentation.v[merge_start_index] = (apca_presentation.v[merge_start_index] + apca_presentation.v[merge_start_index + 1]) / 2;
-		apca_presentation.v[merge_start_index] = getAve(orginal_time_series + int(apca_presentation.r[merge_start_index - 1] + 1), DataType(apca_presentation.r[merge_start_index + 1] - apca_presentation.r[merge_start_index - 1]));
+		//apca_presentation.v[merge_start_index] = getAve(orginal_time_series + int(apca_presentation.r[merge_start_index - 1] + 1), DataType(apca_presentation.r[merge_start_index + 1] - apca_presentation.r[merge_start_index - 1]));
+		
+		if (merge_start_index != 0) {
+			//double temp1 = getAve(orginal_time_series + int(apca_presentation.r[merge_start_index - 1] + 1), DataType(apca_presentation.r[merge_start_index + 1] - apca_presentation.r[merge_start_index - 1]));
+			//apca_presentation.v[merge_start_index] = getAve(orginal_time_series + int(apca_presentation.r[merge_start_index - 1] + 1), DataType(apca_presentation.r[merge_start_index + 1] - apca_presentation.r[merge_start_index - 1]));
+			cout << apca_presentation.r[merge_start_index] - apca_presentation.r[merge_start_index - 1] << endl;
+			cout<<apca_presentation.v[merge_start_index] << endl;
+
+			apca_presentation.v[merge_start_index] = (apca_presentation.v[merge_start_index] * ((apca_presentation.r[merge_start_index] - apca_presentation.r[merge_start_index - 1]) / initial_segment_length) + apca_presentation.v[merge_start_index + 1] * ((apca_presentation.r[merge_start_index + 1] - apca_presentation.r[merge_start_index]) / initial_segment_length)) / ((apca_presentation.r[merge_start_index + 1] - apca_presentation.r[merge_start_index - 1])/ initial_segment_length);
+			//cout << temp1 << " *************** " << apca_presentation.v[merge_start_index] << endl;
+			//if (temp != apca_presentation.v[merge_start_index]) cout << "ERROROROROROOROROROROROO! " << endl;
+		}
+		else {
+			apca_presentation.v[merge_start_index] = getAve(orginal_time_series, DataType(apca_presentation.r[merge_start_index + 1]));
+			double temp = apca_presentation.v[merge_start_index];
+			apca_presentation.v[merge_start_index] = (apca_presentation.v[merge_start_index] * ((apca_presentation.r[merge_start_index] + 1) / initial_segment_length) + apca_presentation.v[merge_start_index + 1] * ((apca_presentation.r[merge_start_index + 1] - apca_presentation.r[merge_start_index]) / initial_segment_length)) / (apca_presentation.r[merge_start_index + 1]);
+			if (temp != apca_presentation.v[merge_start_index]) cout << "ERROROROROROOROROROROROO!!!!! " << endl;
+		}
+		
+		
+		
+		
+		
 		apca_presentation.r[merge_start_index] = apca_presentation.r[merge_start_index + 1];
 
 		merge_start_index++;
@@ -807,8 +831,8 @@ int main()
 
 	//getchar();
 #define ARRAY_LENGTH 8
-	//DataType test_array[ARRAY_LENGTH] = { 7,5,5,3,3,3,4,6 };
-	DataType test_array[ARRAY_LENGTH] = { 0.80467, 0.36777, 0.24389, 0.026614, -0.2744, 0.096731, -0.74773, -1.6098 };
+	DataType test_array[ARRAY_LENGTH] = { 7,5,5,3,3,3,4,6 };
+	//DataType test_array[ARRAY_LENGTH] = { 0.80467, 0.36777, 0.24389, 0.026614, -0.2744, 0.096731, -0.74773, -1.6098 };
 	//DataType* mp_HDWT_time_series = new DataType[8];
 	DataType n = ARRAY_LENGTH, M = 2;
 	APCA test_apca;
