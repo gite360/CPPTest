@@ -639,7 +639,7 @@ bool mergeSegmentsRecursivly(const DataType* orginal_time_series, const APCA& ap
 		APCA_MERGE minimum_distanceAE_merge;
 		minimum_distanceAE_merge.r = new DataType[M];
 		minimum_distanceAE_merge.v = new DataType[M];
-		minimum_distanceAE_merge.distance_AE = MAXMIUM;
+		minimum_distanceAE_merge.distance_AE = DBL_MAX;
 
 		combinateSegments0(orginal_time_series, apca_presentation, apca_presentation.segmentNum, n, M, merge_frequency, 0, 0, minimum_distanceAE_merge);
 		
