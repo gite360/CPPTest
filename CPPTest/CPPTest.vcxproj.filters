@@ -21,6 +21,15 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="APCA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RTree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="saxquantizer.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
