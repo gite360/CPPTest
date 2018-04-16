@@ -56,9 +56,7 @@ int g_n_account_get_result = NULL;
 double g_n_account_apca_point = NULL;
 int g_n_account_leaf_node = NULL;
 int g_n_account_child_node = NULL;
-double memory_account = NULL;
-
-
+int memory_account = NULL;
 
 template<typename DataType>
 class CAPCA
@@ -662,6 +660,8 @@ RTree<DataType, ElementType>& APCA_QUAL::buidRTreeIndex(RTree<DataType, ElementT
 	MBRParameter.r = new double[APCARTree.NUMDIMS];
 	MBRParameter.v = new double[APCARTree.NUMDIMS];
 
+	memory_account = sizeof(*CminParameter.r);
+	cout<<"Memory account: "<< memory_account<<endl;
 	/*cout << "Query Point : ";
 	for (i = 0; i < g_time_series_length; i++) cout << g_query_time_series[i] << ", ";
 	cout << endl;*/
